@@ -1,0 +1,50 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Laminar",
+  "colors": {
+    "primary": "#7C3AED",
+    "light": "#A78BFA",
+    "dark": "#5B21B6"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "docs/overview",
+              "docs/getting-started"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "docs/guides/tutorial-trace-pipeline",
+              "docs/guides/how-to-cicd-evals"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "docs/reference/evaluate"
+            ]
+          },
+          {
+            "group": "Support",
+            "pages": [
+              "docs/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/lmnr-ai/lmnr",
+    "website": "https://lmnr.ai"
+  }
+}

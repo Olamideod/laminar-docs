@@ -1,0 +1,226 @@
+---
+title: "Getting started"
+description: "Install the Laminar SDK, configure your API key, and send your first traced LLM call in under five minutes."
+---
+
+# Getting started
+
+This guide takes you from a fresh environment to a working Laminar setup. By the end, you will have sent a traced LLM call and seen it appear in the Laminar dashboard.
+
+---
+
+## Prerequisites
+
+- Python 3.9 or higher, or Node.js 20 or higher
+- An OpenAI API key from [platform.openai.com](https://platform.openai.com)
+- Basic familiarity with running commands in a terminal
+
+---
+
+<Steps>
+
+<Step title="Create a Laminar account and get your API key">
+
+Go to [lmnr.ai](https://lmnr.ai) and sign up. No credit card is required.
+
+After signing in:
+
+1. Create a new project
+2. Open **Project Settings**
+3. Click **Create API Key**
+4. Copy the key
+
+You will use this key in the next step.
+
+</Step>
+
+<Step title="Install the SDK">
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    pip install lmnr python-dotenv --upgrade
+    ```
+
+    **Expected output:**
+
+    ```
+    Successfully installed lmnr-0.4.x python-dotenv-1.x.x
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    npm install @lmnr-ai/lmnr openai
+    ```
+
+    **Expected output:**
+
+    ```
+    added 12 packages in 3s
+    ```
+  </Tab>
+</Tabs>
+
+</Step>
+
+<Step title="Store your API keys">
+
+Create a `.env` file in your project root:
+
+```bash
+LMNR_PROJECT_API_KEY=your-laminar-api-key
+OPENAI_API_KEY=your-openai-api-key
+```
+
+Replace the placeholder values with your actual keys. Never commit this file to version control.
+
+<Warning>
+  The `.env` file contains sensitive credentials. Add it to your `.gitignore` before your first commit.
+</Warning>
+
+</Step>
+
+<Step title="Write your first traced application">
+
+Create a new file and add the following code:
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    # main.py
+    import os
+    from dotenv import load_dotenv
+    from openai import OpenAI
+    from lmnr import Laminar
+
+    # Load environment variables from .env
+    load_dotenv()
+
+    # Initialize Laminar once at application startup.
+    # After this line, all OpenAI calls are traced automatically.
+    Laminar.initialize(project_api_key=os.environ["LMNR_PROJECT_API_KEY"])
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": "What is LLM observability?"},
+        ],
+    )
+
+    print(response.choices[0].message.content)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    // main.ts
+    import { Laminar } from '@lmnr-ai/lmnr';
+    import { OpenAI } from 'openai';
+
+    // Initialize Laminar once at application startup.
+    // instrumentModules tells Laminar which libraries to trace.
+    Laminar.initialize({
+      projectApiKey: process.env.LMNR_PROJECT_API_KEY,
+      instrumentModules: { openAI: OpenAI },
+    });
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'user', content: 'What is LLM observability?' },
+      ],
+    });
+
+    console.log(response.choices[0].message.content);
+    ```
+  </Tab>
+</Tabs>
+
+</Step>
+
+<Step title="Run the application">
+
+<Tabs>
+  <Tab title="Python">
+    Install `python-dotenv` to load the `.env` file automatically:
+
+    ```bash
+    pip install python-dotenv
+    ```
+
+    Then run:
+
+    ```bash
+    python main.py
+    ```
+
+    Add this line at the top of `main.py` before any other imports:
+
+    ```python
+    from dotenv import load_dotenv
+    load_dotenv()
+    ```
+
+    **Expected output:**
+
+    ```
+    LLM observability refers to the ability to monitor, trace, and analyze
+    the inputs, outputs, and behavior of large language models in production.
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    node --env-file=.env main.ts
+    ```
+
+    **Expected output:**
+
+    ```
+    LLM observability refers to the ability to monitor, trace, and analyze
+    the inputs, outputs, and behavior of large language models in production.
+    ```
+  </Tab>
+</Tabs>
+
+The exact wording will vary. The key signal is that you receive a text response in the terminal.
+
+</Step>
+
+<Step title="View your trace in the Laminar dashboard">
+
+Open [lmnr.ai](https://lmnr.ai) and go to the **Traces** tab in your project. Your request will appear within a few seconds.
+
+Click the trace to see:
+
+- The full prompt and response
+- Token count and estimated cost
+- Latency in milliseconds
+- Model used
+
+Every LLM call your application makes will appear here automatically from this point on.
+
+<Info>
+  If your trace does not appear after 30 seconds, check the troubleshooting guide for common causes.
+</Info>
+
+</Step>
+
+</Steps>
+
+---
+
+## What is next
+
+Now that tracing is set up, you can:
+
+<CardGroup cols={2}>
+  <Card title="Trace a multi-step pipeline" icon="graduation-cap" href="/docs/guides/tutorial-trace-pipeline">
+    Add custom spans to trace your own functions and see nested trace hierarchy in the dashboard.
+  </Card>
+  <Card title="Run evaluations in CI/CD" icon="gear" href="/docs/guides/how-to-cicd-evals">
+    Automate quality checks on every pull request using the Laminar evaluation CLI.
+  </Card>
+</CardGroup>

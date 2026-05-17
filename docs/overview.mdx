@@ -1,0 +1,92 @@
+---
+title: "Overview"
+description: "Laminar is an open-source observability platform purpose-built for AI agents. Trace, evaluate, annotate, and analyze every LLM call in your application."
+---
+
+# Laminar documentation
+
+Laminar is an open-source observability platform purpose-built for AI agents. It gives you tracing, evaluations, dataset management, and production monitoring in one platform. You can be up and running with one line of code.
+
+## What Laminar does
+
+When you initialize Laminar in your application, it automatically instruments your LLM calls. Every request to OpenAI, Anthropic, Gemini, or any supported provider is captured as a trace. You see the full execution flow in the Laminar dashboard: inputs, outputs, latency, token usage, and cost.
+
+Beyond tracing, Laminar gives you a structured way to evaluate your application, annotate outputs, build datasets, and monitor behavior in production.
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Tracing" icon="chart-network">
+    Automatically trace LLM calls from OpenAI, Anthropic, Gemini, LangChain, and more. Add custom spans to trace your own functions with one decorator.
+  </Card>
+  <Card title="Evaluations" icon="flask">
+    Write evaluation pipelines in Python or TypeScript. Run them locally, from the terminal, or as part of a CI/CD workflow. View and compare results in the dashboard.
+  </Card>
+  <Card title="Datasets" icon="database">
+    Build datasets from your traces using the annotation UI or SQL queries. Use datasets as inputs for evaluations.
+  </Card>
+  <Card title="AI monitoring" icon="radar">
+    Define events with natural language to track issues, logical errors, and custom behavior in your agent. Get alerted when something goes wrong.
+  </Card>
+  <Card title="SQL access" icon="code">
+    Query traces, metrics, and events with a built-in SQL editor. Bulk-create datasets from query results.
+  </Card>
+  <Card title="Dashboards" icon="chart-bar">
+    Build dashboards for traces, metrics, and events. Use custom SQL queries to visualize exactly what you need.
+  </Card>
+</CardGroup>
+
+## Who this is for
+
+This documentation is for developers building LLM-powered applications in Python or TypeScript. It assumes basic familiarity with API calls, environment variables, and running commands in a terminal.
+
+## How to get started
+
+<CardGroup cols={2}>
+  <Card title="Getting started" icon="play" href="/docs/getting-started">
+    Install the SDK and send your first trace in under five minutes.
+  </Card>
+  <Card title="Tutorial: Trace a pipeline" icon="graduation-cap" href="/docs/guides/tutorial-trace-pipeline">
+    Build a multi-step LLM pipeline with custom spans and trace hierarchy.
+  </Card>
+  <Card title="How-To: CI/CD evaluations" icon="gear" href="/docs/guides/how-to-cicd-evals">
+    Run Laminar evaluations automatically on every pull request.
+  </Card>
+  <Card title="Reference: evaluate()" icon="book" href="/docs/reference/evaluate">
+    Full parameter reference for the evaluate() function.
+  </Card>
+</CardGroup>
+
+## One-line setup
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    pip install lmnr
+    ```
+
+    ```python
+    from lmnr import Laminar
+    Laminar.initialize(project_api_key="your-api-key")
+    # Your OpenAI, Anthropic, and other LLM calls are now traced automatically.
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    npm install @lmnr-ai/lmnr
+    ```
+
+    ```typescript
+    import { Laminar } from '@lmnr-ai/lmnr';
+    import { OpenAI } from 'openai';
+
+    Laminar.initialize({
+      projectApiKey: process.env.LMNR_PROJECT_API_KEY,
+      instrumentModules: { openAI: OpenAI },
+    });
+    // Your OpenAI calls are now traced automatically.
+    ```
+  </Tab>
+</Tabs>
+
+Sign up for free at [lmnr.ai](https://lmnr.ai). The free tier requires no credit card.
