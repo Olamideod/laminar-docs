@@ -1,8 +1,323 @@
 ---
-title: "Coming soon"
-description: "This page is in progress."
+title: "Reference: evaluate()"
+description: "Full parameter reference for the Laminar evaluate() function. Covers data, executor, evaluators, and configuration options."
 ---
 
-# Coming soon
+# evaluate() function reference
 
-This page will be completed on Day 14.
+The `evaluate()` function runs an evaluation pipeline. It takes a dataset, an executor function, and one or more evaluator functions. It runs the executor against each datapoint, passes the output to each evaluator, and sends the scored results to the Laminar dashboard.
+
+---
+
+## Import
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from lmnr import evaluate
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import { evaluate } from '@lmnr-ai/lmnr';
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Signature
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    evaluate(
+        data: list[dict],
+        executor: Callable,
+        evaluators: dict[str, Callable],
+        name: str | None = None,
+        group_name: str | None = None,
+        config: EvaluationConfig | None = None,
+    )
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    evaluate({
+      data: Datapoint[],
+      executor: (data: Record<string, any>) => Promise<any>,
+      evaluators: Record<string, (output: any, target: any) => number>,
+      name?: string,
+      groupName?: string,
+      config?: EvaluationConfig,
+    })
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Parameters
+
+### data
+
+**Type:** `list[dict]` (Python) / `Datapoint[]` (TypeScript)
+**Required:** Yes
+
+An array of datapoints. Each datapoint has two keys:
+
+- `data`: a dictionary of inputs passed to the executor
+- `target`: the expected output used by evaluators for comparison
+
+```python
+data=[
+    {"data": {"question": "What is 2+2?"}, "target": "4"},
+    {"data": {"question": "What is the capital of France?"}, "target": "Paris"},
+]
+```
+
+---
+
+### executor
+
+**Type:** `Callable` (Python) / `function` (TypeScript)
+**Required:** Yes
+
+The function being evaluated. It receives the `data` field of each datapoint as its first argument. It returns any value. That return value is passed to each evaluator as `output`.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def my_executor(data: dict) -> str:
+        # data is the "data" field from each datapoint
+        question = data["question"]
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": question}],
+        )
+        return response.choices[0].message.content
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    const myExecutor = async (data: Record<string, any>): Promise<string> => {
+      const response = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: data.question }],
+      });
+      return response.choices[0].message.content ?? '';
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+### evaluators
+
+**Type:** `dict[str, Callable]` (Python) / `Record<string, function>` (TypeScript)
+**Required:** Yes
+
+A dictionary mapping evaluator names to evaluator functions. Each evaluator receives two arguments: `output` (the return value of the executor) and `target` (the `target` field from the datapoint). Each evaluator must return a number. Laminar stores and displays this number as the score for that evaluator.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    def exact_match(output: str, target: str) -> int:
+        return 1 if output.strip().lower() == target.strip().lower() else 0
+
+    def contains_answer(output: str, target: str) -> int:
+        return 1 if target.lower() in output.lower() else 0
+
+    evaluators={
+        "exact_match": exact_match,
+        "contains_answer": contains_answer,
+    }
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    const exactMatch = (output: string, target: string): number =>
+      output.trim().toLowerCase() === target.trim().toLowerCase() ? 1 : 0;
+
+    const containsAnswer = (output: string, target: string): number =>
+      output.toLowerCase().includes(target.toLowerCase()) ? 1 : 0;
+
+    const evaluators = {
+      exactMatch,
+      containsAnswer,
+    };
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Evaluators do not need to return only 0 or 1. You can return any number. For example, return a similarity score between 0.0 and 1.0 for a semantic match evaluator.
+</Tip>
+
+---
+
+### name
+
+**Type:** `str` (Python) / `string` (TypeScript)
+**Required:** No
+
+The name of the evaluation run. This name appears in the Laminar dashboard. If you do not provide a name, Laminar generates one automatically.
+
+```python
+name="capitals-eval"
+```
+
+---
+
+### group_name
+
+**Type:** `str` (Python) / `groupName: string` (TypeScript)
+**Required:** No
+
+Groups multiple evaluation runs under a shared label. Use this to compare runs across pull requests or model versions in the dashboard's Compare view.
+
+```python
+group_name="geography-evals"
+```
+
+---
+
+### config
+
+**Type:** `EvaluationConfig` (Python and TypeScript)
+**Required:** No
+
+Configuration for connecting to a self-hosted Laminar instance. Leave this unset if you are using the managed platform at [lmnr.ai](https://lmnr.ai).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `baseUrl` | `str` | `https://api.lmnr.ai` | The base URL of your Laminar instance |
+| `httpPort` | `int` | `443` | HTTP port for the Laminar API |
+| `grpcPort` | `int` | `443` | gRPC port for span ingestion |
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    from lmnr import evaluate, EvaluationConfig
+
+    evaluate(
+        data=[...],
+        executor=my_executor,
+        evaluators={"accuracy": accuracy},
+        config=EvaluationConfig(
+            base_url="http://localhost",
+            http_port=8000,
+            grpc_port=8001,
+        ),
+    )
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    evaluate({
+      data: [...],
+      executor: myExecutor,
+      evaluators: { accuracy },
+      config: {
+        baseUrl: 'http://localhost',
+        httpPort: 8000,
+        grpcPort: 8001,
+      },
+    });
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Full example
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import os
+    from dotenv import load_dotenv
+    from openai import OpenAI
+    from lmnr import evaluate
+
+    load_dotenv()
+    client = OpenAI()
+
+
+    def answer_question(data: dict) -> str:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": data["question"]}],
+        )
+        return response.choices[0].message.content or ""
+
+
+    def exact_match(output: str, target: str) -> int:
+        return 1 if target.lower() in output.lower() else 0
+
+
+    evaluate(
+        data=[
+            {"data": {"question": "What is the capital of France?"}, "target": "Paris"},
+            {"data": {"question": "What is the capital of Japan?"}, "target": "Tokyo"},
+        ],
+        executor=answer_question,
+        evaluators={"exact_match": exact_match},
+        name="geography-eval",
+        group_name="geography",
+    )
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```typescript
+    import { evaluate } from '@lmnr-ai/lmnr';
+    import { OpenAI } from 'openai';
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const answerQuestion = async (data: Record<string, any>): Promise<string> => {
+      const response = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: data.question }],
+      });
+      return response.choices[0].message.content ?? '';
+    };
+
+    const exactMatch = (output: string, target: string): number =>
+      target.toLowerCase().includes(output.toLowerCase()) ? 1 : 0;
+
+    await evaluate({
+      data: [
+        { data: { question: 'What is the capital of France?' }, target: 'Paris' },
+        { data: { question: 'What is the capital of Japan?' }, target: 'Tokyo' },
+      ],
+      executor: answerQuestion,
+      evaluators: { exactMatch },
+      name: 'geography-eval',
+      groupName: 'geography',
+    });
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Run from the CLI
+
+After writing your evaluation file, run it using the Laminar CLI:
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    lmnr eval eval/my_eval.py
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    npx lmnr eval eval/my_eval.ts
+    ```
+  </Tab>
+</Tabs>
+
+The CLI prints a URL to the console after the run completes. Open it to view results in the dashboard.

@@ -1,8 +1,161 @@
 ---
-title: "Coming soon"
-description: "This page is in progress."
+title: "Troubleshooting"
+description: "Common errors when setting up Laminar tracing and evaluations, with causes and fixes."
 ---
 
-# Coming soon
+# Troubleshooting
 
-This page will be completed on Day 14.
+This page covers errors developers commonly encounter when setting up Laminar tracing and running evaluations. Each entry includes the cause and a specific fix.
+
+---
+
+## Tracing
+
+<AccordionGroup>
+
+  <Accordion title="Auto-instrumented spans are not showing in the dashboard (TypeScript)">
+
+    **Cause:** Laminar's auto-instrumentation is based on OpenTelemetry, which is optimized for CommonJS modules. If your project uses ES modules or your bundler transforms imports, the instrumentation may not attach correctly.
+
+    **Fix:** Pass your imported modules explicitly to `instrumentModules` when you initialize Laminar:
+
+    ```typescript
+    import { Laminar } from '@lmnr-ai/lmnr';
+    import { OpenAI } from 'openai';
+    import Anthropic from '@anthropic-ai/sdk';
+
+    Laminar.initialize({
+      projectApiKey: process.env.LMNR_PROJECT_API_KEY,
+      instrumentModules: {
+        openAI: OpenAI,
+        anthropic: Anthropic,
+      },
+    });
+    ```
+
+    The `instrumentModules` option is required for TypeScript projects. Auto-instrumentation does not work without it in most TypeScript environments.
+
+  </Accordion>
+
+  <Accordion title="Spans show in the dashboard but inputs and outputs are missing">
+
+    **Cause:** The span was created but input and output recording was disabled, either by passing `ignoreInput` or `ignoreOutput` options, or because the function did not return a value.
+
+    **Fix:** Check your `@observe` decorator or `observe()` wrapper for `ignoreInput=True` or `ignoreOutput=True` flags and remove them if input/output capture is needed.
+
+    For Python, confirm the function has a `return` statement. A function that returns `None` records `null` as the output span.
+
+    ```python
+    @observe()
+    def my_function(data: dict) -> str:
+        result = do_something(data)
+        return result  # This line must exist for output to be recorded
+    ```
+
+  </Accordion>
+
+  <Accordion title="All route requests are appearing as spans in the dashboard (TypeScript)">
+
+    **Cause:** Laminar's OpenTelemetry-based instrumentation captures all outgoing HTTP requests by default in some environments, including your own API route handlers.
+
+    **Fix:** Update to Laminar version 0.6.0 or higher. Since version 0.6.0, Laminar uses its own tracer provider and is not affected by other auto-instrumentations.
+
+    ```bash
+    npm install @lmnr-ai/lmnr@latest
+    ```
+
+    If you need to stay on an older version, scope the instrumentation to only the modules you need using `instrumentModules`.
+
+  </Accordion>
+
+  <Accordion title="Traces are not appearing in the dashboard after running the application">
+
+    **Cause:** One of three things: the API key is wrong, Laminar is not initialized before the first LLM call, or the application exits before spans are flushed.
+
+    **Fix:** Check all three:
+
+    1. Confirm `LMNR_PROJECT_API_KEY` in your `.env` file matches the key from **Project Settings** in the dashboard exactly.
+
+    2. Confirm `Laminar.initialize()` is called before any LLM calls. Place it at the top of your entry file, before any other imports that make network requests.
+
+    3. If your script exits immediately after an LLM call, spans may not have time to flush. Add a short delay at the end during testing:
+
+    ```python
+    import time
+    # ... your LLM call ...
+    time.sleep(2)  # Give spans time to flush before exit
+    ```
+
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Evaluations
+
+<AccordionGroup>
+
+  <Accordion title="lmnr eval command not found">
+
+    **Cause:** The `lmnr` package is not installed in the active Python environment, or the virtual environment is not activated.
+
+    **Fix:** Confirm the package is installed:
+
+    ```bash
+    pip show lmnr
+    ```
+
+    If the command returns nothing, install the package:
+
+    ```bash
+    pip install lmnr --upgrade
+    ```
+
+    If you are using a virtual environment, confirm it is activated before running the command.
+
+  </Accordion>
+
+  <Accordion title="Evaluation exits with code 1 in CI but all answers look correct">
+
+    **Cause:** The threshold gate in your evaluation file is triggering a failure. The average score across all datapoints dropped below the defined threshold.
+
+    **Fix:** Open the **Evaluations** tab in the Laminar dashboard. Find the failing run and expand it. Check the `output` column for each datapoint to find which rows scored 0.
+
+    Common causes include:
+
+    - The model returned extra punctuation or formatting (for example, `"Paris."` instead of `"Paris"`) and your evaluator uses an exact match check
+    - One model call timed out and returned an empty string
+    - The model used a different phrasing than your target string
+
+    If the issue is intermittent, increase the dataset size. A single wrong answer has less impact on the average when you have more datapoints.
+
+  </Accordion>
+
+  <Accordion title="LMNR_PROJECT_API_KEY not set error in GitHub Actions">
+
+    **Cause:** The secret is not configured in the repository, has a typo in the name, or the `env` block in the workflow file does not reference it correctly.
+
+    **Fix:** Go to **Settings > Secrets and variables > Actions** and confirm the secret name is exactly `LMNR_PROJECT_API_KEY` with no extra spaces or characters.
+
+    In your workflow file, confirm the `env` block is under the correct step:
+
+    ```yaml
+    - name: Run evaluations
+      env:
+        LMNR_PROJECT_API_KEY: ${{ secrets.LMNR_PROJECT_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: lmnr eval eval/pipeline_eval.py
+    ```
+
+    Secrets are not available to pull requests from forks by default. If you are testing from a fork, add the secrets directly to the fork repository's settings.
+
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Still stuck?
+
+Open an issue on the [Laminar GitHub repository](https://github.com/lmnr-ai/lmnr/issues) or ask in the [Laminar Discord](https://discord.gg/nNFUUDAKub).

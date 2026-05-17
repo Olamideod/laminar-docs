@@ -1,0 +1,234 @@
+---
+title: "Tutorial: Trace a multi-step pipeline"
+description: "Learn how Laminar's tracing model works by building a pipeline with nested spans and custom instrumentation."
+---
+
+# Tutorial: Trace a multi-step LLM pipeline
+
+This tutorial teaches you how Laminar structures traces. You will build a pipeline that makes two LLM calls, instrument each function with the `@observe` decorator, and see the full nested trace hierarchy in the Laminar dashboard.
+
+By the end, you will understand how spans nest, why nesting matters for debugging, and how to add custom instrumentation to any function in your application.
+
+---
+
+## Prerequisites
+
+- Laminar installed and initialized in your project. Follow the [Getting started guide](/docs/getting-started) if you have not done this yet.
+- An OpenAI API key stored in `.env`
+- `python-dotenv` installed (Python) or Node.js 20 or higher (TypeScript)
+
+---
+
+## What you are building
+
+You will build a two-stage content pipeline:
+
+1. A `research` function that summarizes a topic using the LLM
+2. A `write_post` function that turns the summary into a short post
+
+Both functions call the LLM. Both will be traced. The trace will show `write_post` calling `research` as a nested child span, with each LLM call nested inside its parent function.
+
+---
+
+## Step 1: Understand how spans work
+
+When Laminar initializes, it automatically traces LLM calls. Each call becomes a flat span in the dashboard. That is useful, but it does not tell you which part of your application made the call.
+
+The `@observe` decorator (Python) and `observe()` wrapper (TypeScript) solve this. They wrap your functions and create a parent span. Every LLM call inside that function becomes a child span.
+
+<Info>
+  Observed functions automatically nest. If function A calls function B and both are observed, B's span becomes a child of A's span. Laminar handles this through context propagation. You do not need to pass anything manually.
+</Info>
+
+---
+
+## Step 2: Write the pipeline
+
+<Tabs>
+  <Tab title="Python">
+    Create `pipeline.py`:
+
+    ```python
+    import os
+    from dotenv import load_dotenv
+    from openai import OpenAI
+    from lmnr import Laminar, observe
+
+    load_dotenv()
+
+    Laminar.initialize(project_api_key=os.environ["LMNR_PROJECT_API_KEY"])
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
+    @observe()
+    def research(topic: str) -> str:
+        """Summarize a topic in two sentences."""
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Summarize {topic} in two sentences.",
+                }
+            ],
+        )
+        return response.choices[0].message.content
+
+
+    @observe()
+    def write_post(topic: str) -> str:
+        """Write a short post using the research summary."""
+        summary = research(topic)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Write a two-sentence LinkedIn post "
+                        f"based on this summary: {summary}"
+                    ),
+                }
+            ],
+        )
+        return response.choices[0].message.content
+
+
+    result = write_post("LLM observability")
+    print(result)
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    Create `pipeline.ts`:
+
+    ```typescript
+    import { Laminar, observe } from '@lmnr-ai/lmnr';
+    import { OpenAI } from 'openai';
+
+    Laminar.initialize({
+      projectApiKey: process.env.LMNR_PROJECT_API_KEY,
+      instrumentModules: { openAI: OpenAI },
+    });
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // research() creates a parent span.
+    // The OpenAI call inside it becomes a child span automatically.
+    const research = (topic: string) =>
+      observe({ name: 'research' }, async () => {
+        const response = await client.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'user', content: `Summarize ${topic} in two sentences.` },
+          ],
+        });
+        return response.choices[0].message.content;
+      });
+
+    // writePost() calls research() inside its observed wrapper.
+    // This makes research() a child span of writePost().
+    const writePost = (topic: string) =>
+      observe({ name: 'writePost' }, async () => {
+        const summary = await research(topic);
+        const response = await client.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: `Write a two-sentence LinkedIn post based on this summary: ${summary}`,
+            },
+          ],
+        });
+        return response.choices[0].message.content;
+      });
+
+    const result = await writePost('LLM observability');
+    console.log(result);
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Step 3: Run the pipeline
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    python pipeline.py
+    ```
+
+    **Expected output:**
+
+    ```
+    LLM observability is transforming how teams ship AI products.
+    If you are building with LLMs, start tracing today.
+    ```
+  </Tab>
+  <Tab title="TypeScript">
+    ```bash
+    node --env-file=.env pipeline.ts
+    ```
+
+    **Expected output:**
+
+    ```
+    LLM observability is transforming how teams ship AI products.
+    If you are building with LLMs, start tracing today.
+    ```
+  </Tab>
+</Tabs>
+
+The exact wording will vary. The key signal is that you receive output in the terminal without errors.
+
+---
+
+## Step 4: Read the trace in the dashboard
+
+Open [lmnr.ai](https://lmnr.ai) and go to the **Traces** tab. Click the most recent trace.
+
+You will see the following hierarchy:
+
+```
+write_post
+├── research
+│   └── openai.chat
+└── openai.chat
+```
+
+Each level shows:
+
+- The function name as the span name
+- Input arguments recorded automatically
+- Return value recorded automatically
+- Latency and token usage for each LLM call
+
+This is what makes multi-step debugging practical. When something goes wrong, you can see exactly which function produced the wrong output and what it received as input.
+
+---
+
+## Step 5: Understand what the trace tells you
+
+Click `research` in the trace tree. You will see:
+
+- **Input:** `{"topic": "LLM observability"}` — the argument passed to the function
+- **Output:** the summary the model returned
+- **Child span:** the raw OpenAI call with the full prompt and response
+
+Click `write_post`. You will see:
+
+- **Input:** `{"topic": "LLM observability"}`
+- **Output:** the final post
+- **Child spans:** the `research` call and its own direct OpenAI call
+
+<Tip>
+  Function arguments are captured as span input automatically. You do not need to log them manually. To hide sensitive arguments from the trace, pass `ignoreInput=True` to the Python decorator or `{ ignoreInput: true }` to the TypeScript wrapper.
+</Tip>
+
+---
+
+## What is next
+
+- Add a third stage to the pipeline and observe it to see deeper nesting
+- Use `Laminar.start_as_current_span()` for tracing code blocks that are not functions
+- Read the [evaluate() reference](/docs/reference/evaluate) to measure the quality of your pipeline output
